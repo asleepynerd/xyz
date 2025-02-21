@@ -53,10 +53,9 @@ export default function FPSCamera({
   audioLoader.load("audio/ambient_music.mp3", function( buffer ) {
     sound.setBuffer( buffer );
     sound.setLoop( true );
-    sound.setVolume( 0.5 );
+    sound.setVolume( 0.2 );
     sound.play();
   });
-
   const maxAmmo = 30;
   const maxGrenades = 5;
   const reloadTime = 2000;
@@ -341,7 +340,7 @@ export default function FPSCamera({
 
     controls.current.recoil *= 0.95;
 
-    let speed = sliding ? controls.current.slideSpeed : controls.current.moveSpeed;
+    const speed = sliding ? controls.current.slideSpeed : controls.current.moveSpeed;
     const angle = controls.current.rotation.y;
     const newPosition = { ...controls.current.position };
 
@@ -352,7 +351,7 @@ export default function FPSCamera({
 
     let isOnPlatform = false;
     const playerY = newPosition.y - 1.7;
-    // Le boxes
+    // Da boxes
     const platformBoxes = [
       { min: [-7, 1.5, -12], max: [-3, 2, -8] },
       { min: [3, 2, -17], max: [7, 2.5, -13] },

@@ -4,7 +4,7 @@ const Game = dynamic(() => import("./components/Game"), {
   ssr: false,
   loading: () => (
     <div className="w-full h-screen flex items-center justify-center">
-      <div className="text-2xl font-bold text-white">Loading game...</div>
+      <div className="text-2xl font-bold text-white">Loading this super cool game...</div>
     </div>
   ),
 });

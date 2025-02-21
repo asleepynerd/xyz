@@ -14,9 +14,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "FPS Game",
+  title: "Block Blast 3D",
   description:
-    "FPS game wip for sockathon",
+    "Block Blast, but it's not; and it's in 3D. I swear I'm not just copying the name.",
 };
 
 export default function RootLayout({

@@ -4,6 +4,7 @@ import FPSCamera from './FPSCamera';
 import PlayerModel from './PlayerModel';
 import Platform from './Platform';
 import Target from './Target';
+import { steve, bob } from '../../maps/config'; // fetch the fking map config
 import type { Player } from '../../types/game';
 
 interface WorldProps {
@@ -11,9 +12,10 @@ interface WorldProps {
   onAmmoUpdate: (ammo: number, reloading: boolean) => void;
   onHealthUpdate: (health: number) => void;
   onPlayersUpdate?: (remotePlayersCount: number, localPlayerExists: boolean) => void;
+  mapId: number; // oh so you want to know which map you're on huh
 }
 
-export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdate }: WorldProps) {
+export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdate, mapId }: WorldProps) {
   const [players, setPlayers] = useState<
     Map<string, { position: THREE.Vector3; rotation: THREE.Euler }>
   >(new Map());
@@ -154,6 +156,9 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
     };
   }, [ws, playerId, onHealthUpdate]);
 
+  // Select the map configuration based on mapId
+  const mapConfig = mapId === 1 ? steve : bob;
+
   return (
     <>
       <ambientLight intensity={1.0} />
@@ -167,41 +172,22 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
       </mesh>
 
       {/* Platforms */}
-      <Platform position={[-5, 2, -10]} size={[4, 0.5, 4]} />
-      <Platform position={[5, 3, -15]} size={[4, 0.5, 4]} />
-      <Platform position={[-8, 4, -20]} size={[4, 0.5, 4]} />
-      <Platform position={[8, 3, -25]} size={[4, 0.5, 4]} />
-      <Platform position={[0, 3.5, -30]} size={[4, 0.5, 4]} />
-
-      <Platform position={[-2, 2.5, -12]} size={[2, 0.3, 2]} />
-      <Platform position={[2, 2.75, -17]} size={[2, 0.3, 2]} />
-      <Platform position={[-4, 3.25, -22]} size={[2, 0.3, 2]} />
-      <Platform position={[4, 3.25, -27]} size={[2, 0.3, 2]} />
+      {mapConfig.platforms.map((platform, index) => (
+        <Platform key={index} position={platform.position} size={platform.size} />
+      ))}
 
       {/* Walls */}
-      <mesh position={[-50, 2, 0]} receiveShadow castShadow>
-        <boxGeometry args={[1, 4, 100]} />
-        <meshStandardMaterial color="#4488ff" />
-      </mesh>
-      <mesh position={[50, 2, 0]} receiveShadow castShadow>
-        <boxGeometry args={[1, 4, 100]} />
-        <meshStandardMaterial color="#4488ff" />
-      </mesh>
-      <mesh position={[0, 2, -50]} receiveShadow castShadow>
-        <boxGeometry args={[100, 4, 1]} />
-        <meshStandardMaterial color="#4488ff" />
-      </mesh>
-      <mesh position={[0, 2, 50]} receiveShadow castShadow>
-        <boxGeometry args={[100, 4, 1]} />
-        <meshStandardMaterial color="#4488ff" />
-      </mesh>
+      {mapConfig.walls.map((wall, index) => (
+        <mesh key={index} position={wall.position} receiveShadow castShadow>
+          <boxGeometry args={wall.size} />
+          <meshStandardMaterial color="#4488ff" />
+        </mesh>
+      ))}
 
       {/* Targets */}
-      <Target position={[-10, 1.5, -20]} />
-      <Target position={[10, 1.5, -30]} />
-      <Target position={[-15, 1.5, -40]} />
-      <Target position={[15, 1.5, -25]} />
-      <Target position={[0, 1.5, -45]} />
+      {mapConfig.targets.map((target, index) => (
+        <Target key={index} position={target.position} />
+      ))}
 
       {/* Other Players */}
       {Array.from(players.entries()).map(([id, data]) => (
@@ -221,6 +207,8 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
         ws={ws}
         onPositionUpdate={handlePositionUpdate}
         onAmmoChange={onAmmoUpdate}
+        isPaused={false} // idk if you have a better solution to take the red line away but here you go
+        onUnpause={() => {}} // i did have to ask chatgpt what the hell that was  
       />
     </>
   );

@@ -43,8 +43,8 @@ export default function Bullet({ start, direction, onHit }: BulletProps) {
     <mesh ref={bulletRef} position={start}>
       <sphereGeometry args={[0.03, 8, 8]} />
       <meshStandardMaterial
-        color="#ffff00"
-        emissive="#ffff00"
+        color="#ADD8E6" // change it to a light blue because why not
+        emissive="#ffff00" // we'll keep this the same because we ballin'
         emissiveIntensity={2}
         metalness={0.5}
         roughness={0.2}

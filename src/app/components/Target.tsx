@@ -16,6 +16,7 @@ export default function Target({ position }: TargetProps) {
     }
   }, [hit]);
 
+  // Return mesh (very usefull comments ik - ploszukiwacz)
   return (
     <mesh
       ref={meshRef}

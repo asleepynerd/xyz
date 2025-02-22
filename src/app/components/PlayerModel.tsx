@@ -8,6 +8,7 @@ interface PlayerModelProps {
   isShooting?: boolean;
 }
 
+// Export the player model
 export default function PlayerModel({ playerId, position, rotation, isShooting = false }: PlayerModelProps) {
   return (
     <group position={position} rotation={rotation} userData={{ isPlayer: true, playerId }}>

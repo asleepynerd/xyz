@@ -9,8 +9,10 @@ interface FPSCameraProps {
   ws?: WebSocket | null;
   onPositionUpdate?: (position: THREE.Vector3, rotation: THREE.Euler) => void;
   onAmmoChange?: (ammo: number, reloading: boolean) => void;
+  onGrenadeChange?: (grenades: number) => void;
   isPaused: boolean;
   onUnpause: () => void;
+  onSlide: () => void;
 }
 
 export default function FPSCamera({
@@ -18,6 +20,8 @@ export default function FPSCamera({
   ws,
   onPositionUpdate,
   onAmmoChange,
+  onGrenadeChange,
+  onSlide,
   isPaused,
   onUnpause,
 }: FPSCameraProps) {
@@ -27,8 +31,11 @@ export default function FPSCamera({
     position: { x: 0, y: 1.7, z: 0 },
     velocity: { x: 0, y: 0, z: 0 },
     recoil: 0,
-    moveSpeed: 0.1,
+    moveSpeed: 0.25,
+    slideSpeed: 0.4,
+    slideJump: 0.4,
     lookSpeed: 0.003,
+    gravity: 0.0060,
     jumpForce: 0.3,
     isGrounded: true,
   });
@@ -37,17 +44,46 @@ export default function FPSCamera({
   const playerBodyRef = useRef<THREE.Mesh>(null);
   const playerGunRef = useRef<THREE.Group>(null);
 
+  const listener = new THREE.AudioListener();
+  camera.add( listener );
+
+  const sound = new THREE.Audio( listener );
+  const audioLoader = new THREE.AudioLoader();
+
+  audioLoader.load("audio/ambient_music.mp3", function( buffer ) {
+    sound.setBuffer( buffer );
+    sound.setLoop( true );
+    sound.setVolume( 0.5 );
+    sound.play();
+  });
+
   const maxAmmo = 30;
+  const maxGrenades = 5;
   const reloadTime = 2000;
+  const slidingTime = 500;
   const [ammo, setAmmo] = useState<number>(maxAmmo);
+  const [grenades, setGrenades] = useState<number>(maxGrenades);
   const [reloading, setReloading] = useState<boolean>(false);
   const [muzzleFlash, setMuzzleFlash] = useState(false);
+  const [sliding, setSliding] = useState(false);
 
   useEffect(() => {
     if (onAmmoChange) {
       onAmmoChange(ammo, reloading);
     }
   }, [ammo, reloading, onAmmoChange]);
+
+  useEffect(() => {
+    if (onGrenadeChange) {
+      onGrenadeChange(grenades);
+    }
+  }, [grenades, onGrenadeChange])
+
+  useEffect(() => {
+    if (onSlide) {
+      onSlide();
+    }
+  }, [sliding, onSlide])
 
   const lastShotRef = useRef(0);
   const [bullets, setBullets] = useState<
@@ -65,6 +101,7 @@ export default function FPSCamera({
     jump: false,
   });
 
+  // Visual Studio Code hates this line.
   function reload() {
     if (reloading) return;
     setReloading(true);
@@ -72,6 +109,27 @@ export default function FPSCamera({
       setAmmo(maxAmmo);
       setReloading(false);
     }, reloadTime);
+  }
+
+  function shootSlide() {
+    if (!sliding) {
+      setSliding(true);
+      const slideTilt = -0.25;
+      controls.current.rotation.x = controls.current.recoil + slideTilt;
+
+      setTimeout(() => {
+        setSliding(false);
+        controls.current.rotation.x = 0;
+      }, slidingTime)
+    }
+  }
+
+  function shootGrenade() {
+    if (grenades > 0) {
+      console.log("shooting grenades");
+
+      setGrenades((prev) => prev - 1);
+    }
   }
 
   function shoot() {
@@ -86,7 +144,7 @@ export default function FPSCamera({
     lastShotRef.current = now;
 
     setAmmo((prev) => prev - 1);
-    controls.current.recoil += 0.02;
+    controls.current.recoil -= 0.02;
     setMuzzleFlash(true);
     setTimeout(() => setMuzzleFlash(false), 50);
 
@@ -141,19 +199,25 @@ export default function FPSCamera({
     function handleKeyDown(e: KeyboardEvent) {
       if (isPaused && e.code !== "Space") return;
 
+      // Switch the key codes
       switch (e.code) {
+        // W
         case "KeyW":
           keyState.current.forward = true;
           break;
+        // S
         case "KeyS":
           keyState.current.backward = true;
           break;
+        // A
         case "KeyA":
           keyState.current.left = true;
           break;
+        // D
         case "KeyD":
           keyState.current.right = true;
           break;
+        // Space
         case "Space":
           if (isPaused) {
             onUnpause();
@@ -162,10 +226,18 @@ export default function FPSCamera({
             controls.current.isGrounded = false;
           }
           break;
+        case "KeyQ":
+          shootSlide();
+          break;
+        // R
         case "KeyR":
           if (!reloading && ammo < maxAmmo) {
             reload();
           }
+          break;
+        // G
+        case "KeyG":
+          shootGrenade();
           break;
       }
     }
@@ -174,15 +246,19 @@ export default function FPSCamera({
       if (isPaused) return;
 
       switch (e.code) {
+        // W
         case "KeyW":
           keyState.current.forward = false;
           break;
+        // S
         case "KeyS":
           keyState.current.backward = false;
           break;
+        // A
         case "KeyA":
           keyState.current.left = false;
           break;
+        // D
         case "KeyD":
           keyState.current.right = false;
           break;
@@ -234,47 +310,49 @@ export default function FPSCamera({
       e.preventDefault();
     }
 
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("keyup", handleKeyUp);
-    document.addEventListener("mousedown", handleMouseDown);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.addEventListener("mousemove", updateRotation);
-    document.addEventListener("click", lockControls);
-    document.addEventListener("pointerlockchange", handleLockChange);
-    document.addEventListener("contextmenu", handleContextMenu);
+    // Add listeners (Cant wait for firefox to crash on this code)
+    document.addEventListener("keydown", handleKeyDown); // Key down
+    document.addEventListener("keyup", handleKeyUp); // Key up
+    document.addEventListener("mousedown", handleMouseDown); // Mouse down
+    document.addEventListener("mouseup", handleMouseUp); // Mouse up
+    document.addEventListener("mousemove", updateRotation); // Mouse move
+    document.addEventListener("click", lockControls); // Click
+    document.addEventListener("pointerlockchange", handleLockChange); // Pointer lock change
+    document.addEventListener("contextmenu", handleContextMenu); // Content menu
 
     return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("keyup", handleKeyUp);
-      document.removeEventListener("mousedown", handleMouseDown);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.removeEventListener("mousemove", updateRotation);
-      document.removeEventListener("click", lockControls);
-      document.removeEventListener("pointerlockchange", handleLockChange);
-      document.removeEventListener("contextmenu", handleContextMenu);
+      document.removeEventListener("keydown", handleKeyDown); // Key down
+      document.removeEventListener("keyup", handleKeyUp); // Key up
+      document.removeEventListener("mousedown", handleMouseDown); // Mouse down
+      document.removeEventListener("mouseup", handleMouseUp); // Mouse up
+      document.removeEventListener("mousemove", updateRotation); // Mouse move
+      document.removeEventListener("click", lockControls); // Click
+      document.removeEventListener("pointerlockchange", handleLockChange); // Pointer lock change
+      document.removeEventListener("contextmenu", handleContextMenu); // Content menu
     };
-  }, [isPaused, onUnpause, ammo, reloading]);
+  }, [isPaused, onUnpause, ammo, reloading, reload]);
 
   const [isAiming, setIsAiming] = useState(false);
 
   useFrame(() => {
     if (isShootingRef.current) {
-      shoot();
+      shoot(); // Shoot
     }
 
     controls.current.recoil *= 0.95;
 
-    const speed = controls.current.moveSpeed;
+    let speed = sliding ? controls.current.slideSpeed : controls.current.moveSpeed;
     const angle = controls.current.rotation.y;
     const newPosition = { ...controls.current.position };
 
     if (!controls.current.isGrounded) {
-      controls.current.velocity.y -= 0.015;
+      controls.current.velocity.y -= controls.current.gravity;
     }
     newPosition.y += controls.current.velocity.y;
 
     let isOnPlatform = false;
     const playerY = newPosition.y - 1.7;
+    // Le boxes
     const platformBoxes = [
       { min: [-7, 1.5, -12], max: [-3, 2, -8] },
       { min: [3, 2, -17], max: [7, 2.5, -13] },
@@ -370,6 +448,9 @@ export default function FPSCamera({
         )
       );
     }
+
+    console.log(speed)
+    console.log(controls.current.position.y)
   });
 
   return (

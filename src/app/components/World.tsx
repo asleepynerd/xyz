@@ -1,33 +1,53 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import * as THREE from 'three';
-import FPSCamera from './FPSCamera';
-import PlayerModel from './PlayerModel';
-import Platform from './Platform';
-import Target from './Target';
-import { steve, bob } from '../../maps/config'; // fetch the fking map config
-import type { Player } from '../../types/game';
+import React, { useState, useEffect, useCallback } from "react";
+import * as THREE from "three";
+import FPSCamera from "./FPSCamera";
+import PlayerModel from "./PlayerModel";
+import Platform from "./Platform";
+import Target from "./Target";
+import { steve, bob } from "../../maps/config"; // fetch the fking map config
+import type { Player } from "../../types/game";
 
 interface WorldProps {
   ws: WebSocket | null;
   onAmmoUpdate: (ammo: number, reloading: boolean) => void;
   onHealthUpdate: (health: number) => void;
-  onPlayersUpdate?: (remotePlayersCount: number, localPlayerExists: boolean) => void;
+  onPlayersUpdate?: (
+    remotePlayersCount: number,
+    localPlayerExists: boolean
+  ) => void;
+  isPaused: boolean;
+  onUnpause: () => void;
+  onGrenadeUpdate: (grenades: number) => void;
+  onSlide: () => void;
   mapId: number; // oh so you want to know which map you're on huh
 }
 
-export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdate, mapId }: WorldProps) {
+export default function World({
+  ws,
+  onAmmoUpdate,
+  onHealthUpdate,
+  onPlayersUpdate, 
+  mapId,
+  onGrenadeUpdate,
+  onSlide,
+  isPaused,
+  onUnpause,
+}: WorldProps) {
   const [players, setPlayers] = useState<
     Map<string, { position: THREE.Vector3; rotation: THREE.Euler }>
   >(new Map());
   const [playerId, setPlayerId] = useState<string | null>(null);
-  const [remoteShooting, setRemoteShooting] = useState<Map<string, number>>(new Map());
+  const [remoteShooting, setRemoteShooting] = useState<Map<string, number>>(
+    new Map()
+  );
 
+  // Handle smth
   const handlePositionUpdate = useCallback(
     (position: THREE.Vector3, rotation: THREE.Euler) => {
       if (ws && playerId) {
         ws.send(
           JSON.stringify({
-            type: 'player-update',
+            type: "player-update",
             payload: {
               id: playerId,
               position: { x: position.x, y: position.y, z: position.z },
@@ -49,9 +69,11 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
   useEffect(() => {
     if (!ws) return;
 
+    // Handle messages
     const handleMessage = (event: MessageEvent) => {
       const message = JSON.parse(event.data);
       switch (message.type) {
+        // Game state
         case "game-state": {
           const newPlayers = new Map();
           message.payload.players.forEach((player: Player) => {
@@ -78,6 +100,7 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
           }
           break;
         }
+        // Player join
         case "player-join": {
           if (message.payload.id !== playerId) {
             setPlayers((prev) => {
@@ -99,6 +122,7 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
           }
           break;
         }
+        // Player leave
         case "player-leave": {
           setPlayers((prev) => {
             const next = new Map(prev);
@@ -107,6 +131,7 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
           });
           break;
         }
+        // Player update
         case "player-update": {
           if (message.payload.id !== playerId) {
             setPlayers((prev) => {
@@ -130,12 +155,14 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
           }
           break;
         }
+        // Player hit
         case "player-hit": {
           if (message.payload.targetId === playerId) {
             onHealthUpdate(message.payload.health);
           }
           break;
         }
+        // Player shoot
         case "player-shoot": {
           const shooterId = message.payload.playerId;
           if (shooterId && shooterId !== playerId) {
@@ -150,15 +177,20 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
       }
     };
 
-    ws.addEventListener('message', handleMessage);
+    // Send ws data (i think - ploszukiwacz)
+    ws.addEventListener("message", handleMessage);
     return () => {
-      ws.removeEventListener('message', handleMessage);
+      ws.removeEventListener("message", handleMessage);
     };
   }, [ws, playerId, onHealthUpdate]);
 
   // Select the map configuration based on mapId
   const mapConfig = mapId === 1 ? steve : bob;
 
+  // Select the map configuration based on mapId
+  const mapConfig = mapId === 1 ? steve : bob;
+
+  // Reutrn the world (i think - ploszukiwacz)
   return (
     <>
       <ambientLight intensity={1.0} />
@@ -202,6 +234,7 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
         />
       ))}
 
+      {/* The First Person Shooter Camera */}
       <FPSCamera
         playerId={playerId}
         ws={ws}
@@ -209,6 +242,10 @@ export default function World({ ws, onAmmoUpdate, onHealthUpdate, onPlayersUpdat
         onAmmoChange={onAmmoUpdate}
         isPaused={false} // idk if you have a better solution to take the red line away but here you go
         onUnpause={() => {}} // i did have to ask chatgpt what the hell that was  
+        onSlide={onSlide}
+        onGrenadeChange={onGrenadeUpdate}
+        isPaused={isPaused}
+        onUnpause={onUnpause}
       />
     </>
   );
